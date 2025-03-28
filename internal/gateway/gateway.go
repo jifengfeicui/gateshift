@@ -9,6 +9,7 @@ import (
 	"runtime"
 	"strconv"
 	"strings"
+	"syscall"
 	"time"
 
 	"golang.org/x/text/encoding/simplifiedchinese"
@@ -305,8 +306,24 @@ func getActiveWindowsInterface() (*NetworkInterface, error) {
 
 func switchWindowsGateway(iface *NetworkInterface, newGateway string) error {
 	// Windows requires administrative privileges to change the gateway
-	param := fmt.Sprintf("name=\"%s\" static %s %s %s", iface.Name, iface.IP, iface.Subnet, newGateway)
-	return sudoSession.RunWithPrivileges("netsh", "interface", "ip", "set", "address", param)
+	//param := fmt.Sprintf("name=\"%s static %s %s %s", iface.Name, iface.IP, "255.255.255.0", newGateway)
+	//cmd := exec.Command("netsh", "interface", "ip", "set", "address", param)
+	cmd := exec.Command("netsh", "interface", "ip", "set", "address", "name="+iface.Name, "static", iface.IP, "255.255.255.0", newGateway)
+	fmt.Println(cmd.String())
+	var outBuf, errBuf bytes.Buffer
+	cmd.Stdout = &outBuf
+	cmd.Stderr = &errBuf
+	// 设置命令的标准输入输出
+	cmd.SysProcAttr = &syscall.SysProcAttr{HideWindow: true}
+	err := cmd.Run()
+	if err != nil {
+		fmt.Println(outBuf.String())
+		fmt.Println(errBuf.String())
+		return err
+	}
+	return nil
+
+	//return sudoSession.RunWithPrivileges("netsh", "interface", "ip", "set", "address", param)
 
 }
 

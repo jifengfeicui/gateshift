@@ -116,6 +116,7 @@ func (s *SudoSession) runWindowsElevated(name string, args ...string) error {
 
 	// Run the PowerShell script
 	cmd := exec.Command("powershell", "-ExecutionPolicy", "Bypass", "-File", scriptPath)
+	fmt.Println(cmd.String())
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	return cmd.Run()
