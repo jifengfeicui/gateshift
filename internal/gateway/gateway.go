@@ -1,13 +1,18 @@
 package gateway
 
 import (
+	"bytes"
 	"fmt"
+	"io/ioutil"
 	"net"
 	"os/exec"
 	"runtime"
 	"strconv"
 	"strings"
 	"time"
+
+	"golang.org/x/text/encoding/simplifiedchinese"
+	"golang.org/x/text/transform"
 
 	"github.com/ourines/GateShift/internal/utils"
 )
@@ -106,6 +111,7 @@ func getActiveMacInterface() (*NetworkInterface, error) {
 	// Get IP, subnet, and gateway
 	cmd = exec.Command("ifconfig", ifaceName)
 	output, err = cmd.Output()
+	fmt.Println("执行mac")
 	if err != nil {
 		return nil, fmt.Errorf("failed to get interface config: %w", err)
 	}
@@ -240,14 +246,17 @@ func switchLinuxGateway(iface *NetworkInterface, newGateway string) error {
 
 // Windows specific implementations
 func getActiveWindowsInterface() (*NetworkInterface, error) {
+
 	// Get interface information
-	cmd := exec.Command("netsh", "interface", "ip", "show", "config")
+	//cmd := exec.Command("netsh", "interface", "ip", "show", "config")
+	cmd := exec.Command("powershell", "-Command", "chcp 437 | Out-Null; netsh interface ip show config")
 	output, err := cmd.Output()
 	if err != nil {
 		return nil, fmt.Errorf("failed to get interface config: %w", err)
 	}
-
-	outputStr := string(output)
+	outputUtf8, err := convertGBKToUTF8(output)
+	outputStr := string(outputUtf8)
+	//fmt.Println(outputStr)
 	var (
 		currentInterface    string
 		ip, subnet, gateway string
@@ -296,8 +305,9 @@ func getActiveWindowsInterface() (*NetworkInterface, error) {
 
 func switchWindowsGateway(iface *NetworkInterface, newGateway string) error {
 	// Windows requires administrative privileges to change the gateway
-	return sudoSession.RunWithPrivileges("netsh", "interface", "ip", "set", "address",
-		fmt.Sprintf("name=\"%s\"", iface.Name), "gateway="+newGateway)
+	param := fmt.Sprintf("name=\"%s\" static %s %s %s", iface.Name, iface.IP, iface.Subnet, newGateway)
+	return sudoSession.RunWithPrivileges("netsh", "interface", "ip", "set", "address", param)
+
 }
 
 // CheckInternetConnectivity verifies if there's internet connectivity
@@ -337,4 +347,11 @@ func IsPrivateIP(ip net.IP) bool {
 	}
 
 	return false
+}
+
+// convertGBKToUTF8 将 GBK 编码转换为 UTF-8
+func convertGBKToUTF8(input []byte) ([]byte, error) {
+	decoder := simplifiedchinese.GBK.NewDecoder()
+	utf8Reader := transform.NewReader(bytes.NewReader(input), decoder)
+	return ioutil.ReadAll(utf8Reader)
 }

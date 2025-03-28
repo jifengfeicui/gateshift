@@ -14,6 +14,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/davecgh/go-spew/spew"
 	"github.com/spf13/cobra"
 
 	"github.com/ourines/GateShift/internal/dns"
@@ -790,6 +791,9 @@ func (pw *ProgressWriter) Write(p []byte) (int, error) {
 func switchGateway(newGateway string) error {
 	// Get the active interface
 	iface, err := gateway.GetActiveInterface()
+	fmt.Println("=====================")
+	spew.Dump(iface)
+	fmt.Println("=====================")
 	if err != nil {
 		return fmt.Errorf("failed to get active interface: %w", err)
 	}
